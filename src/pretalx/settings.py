@@ -535,7 +535,7 @@ AUTH_USER_MODEL = "person.User"
 DEFAULT_AUTHENTICATION_BACKENDS = [
     "rules.permissions.ObjectPermissionBackend",
     "django.contrib.auth.backends.ModelBackend",
-    "pretalx.common.auth.AuthenticationTokenBackend",
+    "pretalx.common.auth.UserTokenAuthentication",
     "allauth.account.auth_backends.AuthenticationBackend",
 ]
 EXTRA_AUTH_BACKENDS = [
