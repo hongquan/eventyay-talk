@@ -8,7 +8,8 @@ from requests import get
 
 from pretalx.celery_app import app
 from pretalx.common.signals import minimum_interval, periodic_task
-from pretalx.person.models.user import User, UserApiToken
+from pretalx.person.models.user import User
+from pretalx.person.models import UserApiToken
 
 logger = logging.getLogger(__name__)
 

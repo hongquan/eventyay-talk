@@ -58,16 +58,16 @@ def get_schedule_exporter_content(request, exporter_name, schedule):
     if not exporter:
         return
     exporter.schedule = schedule
-        if "-my" in exporter.identifier and self.request.user.id is None:
-            if request.GET.get("talks"):
-                exporter.talk_ids = request.GET.get("talks").split(",")
-            else:
-                return HttpResponseRedirect(self.request.event.urls.login)
-        favs_talks = SubmissionFavouriteDeprecated.objects.filter(
-            user=self.request.user.id
-        )
-        if favs_talks.exists():
-            exporter.talk_ids = favs_talks[0].talk_list
+    if "-my" in exporter.identifier and self.request.user.id is None:
+        if request.GET.get("talks"):
+            exporter.talk_ids = request.GET.get("talks").split(",")
+        else:
+            return HttpResponseRedirect(self.request.event.urls.login)
+    favs_talks = SubmissionFavouriteDeprecated.objects.filter(
+        user=self.request.user.id
+    )
+    if favs_talks.exists():
+        exporter.talk_ids = favs_talks[0].talk_list
     exporter.is_orga = is_organiser
     lang_code = request.GET.get("lang")
     if lang_code and lang_code in request.event.locales:
