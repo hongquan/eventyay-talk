@@ -1,9 +1,17 @@
 import hashlib
 import random
 import string
+import logging
 from contextlib import suppress
 
+from django.http import HttpResponse, HttpResponseNotModified
+from django.utils.translation import activate
+
 from pretalx.common.signals import register_data_exporters, register_my_data_exporters
+from pretalx.common.text.path import safe_filename
+from pretalx.submission.models.submission import SubmissionFavouriteDeprecated
+
+logger = logging.getLogger(__name__)
 
 
 def is_visible(exporter, request, public=False):
@@ -42,6 +50,48 @@ def find_schedule_exporter(request, name, public=False):
         if exporter.identifier == name:
             return exporter
     return None
+
+
+def get_schedule_exporter_content(request, exporter_name, schedule):
+    is_organiser = request.user.has_perm("orga.view_schedule", request.event)
+    exporter = find_schedule_exporter(request, exporter_name, public=not is_organiser)
+    if not exporter:
+        return
+    exporter.schedule = schedule
+        if "-my" in exporter.identifier and self.request.user.id is None:
+            if request.GET.get("talks"):
+                exporter.talk_ids = request.GET.get("talks").split(",")
+            else:
+                return HttpResponseRedirect(self.request.event.urls.login)
+        favs_talks = SubmissionFavouriteDeprecated.objects.filter(
+            user=self.request.user.id
+        )
+        if favs_talks.exists():
+            exporter.talk_ids = favs_talks[0].talk_list
+    exporter.is_orga = is_organiser
+    lang_code = request.GET.get("lang")
+    if lang_code and lang_code in request.event.locales:
+        activate(lang_code)
+    elif "lang" in request.GET:
+        activate(request.event.locale)
+    try:
+        file_name, file_type, data = exporter.render(request=request)
+        etag = hashlib.sha1(str(data).encode()).hexdigest()
+    except Exception:
+        logger.exception(
+            f"Failed to use {exporter.identifier} for {request.event.slug}"
+        )
+        return
+    if request.headers.get("If-None-Match") == etag:
+        return HttpResponseNotModified()
+    headers = {"ETag": f'"{etag}"'}
+    if file_type not in ("application/json", "text/xml"):
+        headers["Content-Disposition"] = (
+            f'attachment; filename="{safe_filename(file_name)}"'
+        )
+    if exporter.cors:
+        headers["Access-Control-Allow-Origin"] = exporter.cors
+    return HttpResponse(data, content_type=file_type, headers=headers)
 
 
 def encode_email(email):

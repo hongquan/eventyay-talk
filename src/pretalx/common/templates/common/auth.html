@@ -1,6 +1,7 @@
 {% load compress %}
 {% load i18n %}
 {% load static %}
+{% load html_signal %}
 {% load socialaccount %}
 {% load oauth_tags %}
 
@@ -32,6 +33,7 @@
                 </a>
             </div>
         </div>
+        {% html_signal "pretalx.common.signals.auth_html" sender=request.event request=request next_url=success_url %}
     {% endif %}
     {% if not hide_register %}
         <hr>

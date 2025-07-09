@@ -23,7 +23,6 @@ from django.views.generic import (
     View,
 )
 from django_context_decorator import context
-from rest_framework.authtoken.models import Token
 
 from pretalx.cfp.forms.submissions import SubmissionInvitationForm
 from pretalx.cfp.views.event import LoggedInEventPageMixin
@@ -33,7 +32,7 @@ from pretalx.common.middleware.event import get_login_redirect
 from pretalx.common.text.phrases import phrases
 from pretalx.common.views import is_form_bound
 from pretalx.person.forms import LoginInfoForm, SpeakerProfileForm
-from pretalx.person.permissions import person_can_view_information
+from pretalx.person.rules import can_view_information
 from pretalx.schedule.forms import AvailabilitiesFormMixin
 from pretalx.submission.forms import InfoForm, QuestionsForm, ResourceForm
 from pretalx.submission.models import Resource, Submission, SubmissionStates
@@ -52,12 +51,6 @@ class ProfileView(LoggedInEventPageMixin, TemplateView):
             user=self.request.user,
             data=self.request.POST if is_form_bound(self.request, "login") else None,
         )
-
-    @context
-    def token(self):
-        return Token.objects.filter(
-            user=self.request.user
-        ).first() or Token.objects.create(user=self.request.user)
 
     @context
     @cached_property
@@ -97,11 +90,7 @@ class ProfileView(LoggedInEventPageMixin, TemplateView):
         return self.request.event.questions.filter(target="speaker").exists()
 
     def post(self, request, *args, **kwargs):
-        if request.POST.get("form") == "token":
-            request.user.regenerate_token()
-            messages.success(request, phrases.cfp.token_regenerated)
-            return super().get(request, *args, **kwargs)
-        elif self.login_form.is_bound and self.login_form.is_valid():
+        if self.login_form.is_bound and self.login_form.is_valid():
             self.login_form.save()
             request.user.log_action("pretalx.user.password.update")
         elif self.profile_form.is_bound and self.profile_form.is_valid():
@@ -125,17 +114,33 @@ class ProfileView(LoggedInEventPageMixin, TemplateView):
 
 
 class SubmissionViewMixin:
-    permission_required = "submission.edit_submission"
+    permission_required = "submission.update_submission"
+
+    def has_permission(self):
+        return super().has_permission() or self.request.user.has_perm(
+            "orga.view_submissions", self.request.event
+        )
+
+    def dispatch(self, request, *args, **kwargs):
+        if self.request.user not in self.object.speakers.all():
+            # User has permission to see permission, but not to see this particular
+            # page, so we redirect them to the organiser page
+            return redirect(self.object.orga_urls.base)
+        return super().dispatch(request, *args, **kwargs)
 
     def get_object(self):
-        users = [self.request.user] if not self.request.user.is_anonymous else []
+
         return get_object_or_404(
             Submission.all_objects.filter(event=self.request.event)
             .exclude(state=SubmissionStates.DELETED)
             .prefetch_related("answers", "answers__options", "speakers"),
-            speakers__in=users,
-            code__iexact=self.kwargs.get("code"),
+            code__iexact=self.kwargs["code"],
         )
+
+    @context
+    @cached_property
+    def object(self):
+        return self.get_object()
 
     @context
     @cached_property
@@ -152,7 +157,7 @@ class SubmissionsListView(LoggedInEventPageMixin, ListView):
         return [
             info
             for info in self.request.event.information.all()
-            if person_can_view_information(self.request.user, info)
+            if can_view_information(self.request.user, info)
         ]
 
     @context
@@ -286,7 +291,7 @@ class SubmissionsEditView(LoggedInEventPageMixin, SubmissionViewMixin, UpdateVie
     form_class = InfoForm
     context_object_name = "submission"
     permission_required = "submission.view_submission"
-    write_permission_required = "submission.edit_submission"
+    write_permission_required = "submission.update_submission"
 
     def get_permission_object(self):
         return self.object
