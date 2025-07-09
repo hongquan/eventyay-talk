@@ -1,42 +1,80 @@
-from i18nfield.rest_framework import I18nAwareModelSerializer
-from rest_framework.serializers import CharField, ModelSerializer, SerializerMethodField
+from django.db import transaction
+from rest_framework.serializers import BooleanField, ModelSerializer, UUIDField
 
+from pretalx.api.mixins import PretalxSerializer
+from pretalx.api.versions import CURRENT_VERSIONS, register_serializer
 from pretalx.schedule.models import Availability, Room
 
 
+@register_serializer()
 class AvailabilitySerializer(ModelSerializer):
-    allDay = SerializerMethodField()
-
-    def get_allDay(self, obj):
-        return obj.all_day
+    allDay = BooleanField(
+        help_text="Computed field indicating if an availability fills an entire day.",
+        read_only=True,
+        source="all_day",
+    )
 
     class Meta:
         model = Availability
-        fields = ("id", "start", "end", "allDay")
+        fields = ("start", "end", "allDay")
 
 
-class RoomSerializer(I18nAwareModelSerializer):
-    url = SerializerMethodField()
-    guid = CharField(source="uuid")
-
-    def get_url(self, obj):
-        return obj.urls.edit
+@register_serializer(versions=CURRENT_VERSIONS)
+class RoomSerializer(PretalxSerializer):
+    uuid = UUIDField(
+        help_text="The uuid field is equal the the guid field if a guid has been set. Otherwise, it will contain a computed (stable) UUID.",
+        read_only=True,
+    )
 
     class Meta:
         model = Room
         fields = (
             "id",
-            "guid",
             "name",
             "description",
+            "uuid",
+            "guid",
             "capacity",
             "position",
-            "url",
         )
 
 
+@register_serializer(versions=CURRENT_VERSIONS)
 class RoomOrgaSerializer(RoomSerializer):
-    availabilities = AvailabilitySerializer(many=True)
+    availabilities = AvailabilitySerializer(many=True, required=False)
+
+    def create(self, validated_data):
+        availabilities_data = validated_data.pop("availabilities", None)
+        validated_data["event"] = getattr(self.context.get("request"), "event", None)
+        room = super().create(validated_data)
+        if availabilities_data is not None:
+            self._handle_availabilities(room, availabilities_data)
+        return room
+
+    def update(self, instance, validated_data):
+        availabilities_data = validated_data.pop("availabilities", None)
+        room = super().update(instance, validated_data)
+        if availabilities_data is not None:
+            self._handle_availabilities(room, availabilities_data)
+        return room
+
+    def _handle_availabilities(self, room, availabilities_data):
+        availabilities = []
+        for avail_data in availabilities_data:
+            avail = Availability(
+                event=room.event,
+                start=avail_data["start"],
+                end=avail_data["end"],
+            )
+            availabilities.append(avail)
+
+        merged_availabilities = Availability.union(availabilities)
+        for avail in merged_availabilities:
+            avail.room = room
+
+        with transaction.atomic():
+            room.availabilities.all().delete()
+            Availability.objects.bulk_create(merged_availabilities)
 
     class Meta:
         model = Room

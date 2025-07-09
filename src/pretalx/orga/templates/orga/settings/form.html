@@ -2,7 +2,6 @@
 
 {% load compress %}
 {% load i18n %}
-{% load rules %}
 {% load static %}
 
 {% block stylesheets %}
@@ -60,7 +59,7 @@
         </section>
         <section role="tabpanel" id="tabpanel-display" aria-labelledby="tab-display" tabindex="0" aria-hidden="true">
             <fieldset>
-                <legend>{% translate "Design" %}</legend>
+                <legend id="design">{% translate "Design" %}</legend>
                 {{ form.primary_color.as_field_group }}
                 {{ form.logo.as_field_group }}
                 {{ form.header_image.as_field_group }}
@@ -78,7 +77,7 @@
                 </div>
             </fieldset>
             <fieldset>
-                <legend>{% translate "Schedule" %}</legend>
+                <legend id="schedule">{% translate "Schedule" %}</legend>
                 {{ form.show_schedule.as_field_group }}
                 {{ form.schedule.as_field_group }}
                 {{ form.show_featured.as_field_group }}
@@ -87,7 +86,7 @@
                 {{ form.html_export_url.as_field_group }}
             </fieldset>
             <fieldset>
-                <legend>{% translate "Other settings" %}</legend>
+                <legend id="other-settings">{% translate "Other settings" %}</legend>
 
                 <div class="form-group hide-optional">
                     <label class="col-md-3 control-label">
@@ -126,8 +125,7 @@
         </section>
         <div class="submit-group panel">
             <span>
-                {% has_perm "person.is_administrator" request.user request.event as can_delete_event %}
-                {% if can_delete_event %}
+                {% if request.user.is_administrator %}
                     <a class="btn btn-outline-danger btn-lg" href="{{ request.event.orga_urls.delete }}">
                         {% translate "Delete event" %}
                     </a>
