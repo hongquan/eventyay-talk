@@ -383,8 +383,12 @@ class Event(PretalxModel):
         question_options = "{base}question-options/"
         answers = "{base}answers/"
         tags = "{base}tags/"
-<<<<<<< HEAD
-    
+        tracks = "{base}tracks/"
+        submission_types = "{base}submission-types/"
+        mail_templates = "{base}mail-templates/"
+        access_codes = "{base}access-codes/"
+        speaker_information = "{base}speaker-information/"
+
     class tickets_urls(EventUrls):
         _full_base_path = settings.EVENTYAY_TICKET_BASE_PATH
         base_path = urlparse(_full_base_path).path.rstrip('/')
@@ -392,14 +396,6 @@ class Event(PretalxModel):
         common = "{base_path}/common/"
         tickets_home_common = "{common}event/{self.organiser.slug}/{self.slug}/"
         tickets_dashboard_url = "{base}event/{self.organiser.slug}/{self.slug}/"
-||||||| e4449e648
-=======
-        tracks = "{base}tracks/"
-        submission_types = "{base}submission-types/"
-        mail_templates = "{base}mail-templates/"
-        access_codes = "{base}access-codes/"
-        speaker_information = "{base}speaker-information/"
->>>>>>> 0a00ea3
 
     class Meta:
         ordering = ("date_from",)
