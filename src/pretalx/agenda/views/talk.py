@@ -19,6 +19,7 @@ from pretalx.agenda.views.utils import encode_email
 from pretalx.cfp.views.event import EventPageMixin
 from pretalx.common.text.phrases import phrases
 from pretalx.common.views.mixins import PermissionRequired, SocialMediaCardMixin
+from pretalx.common.views.mixins import EventPermissionRequired
 from pretalx.schedule.models import TalkSlot
 from pretalx.submission.forms import FeedbackForm
 from pretalx.submission.models import Submission, SubmissionStates

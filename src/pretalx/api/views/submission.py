@@ -6,9 +6,10 @@ import jwt
 import requests
 from django.db import IntegrityError
 from django.db.models import Count
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.utils.functional import cached_property
 from django.views import View
+from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django_filters import rest_framework as filters
 from django_scopes import scopes_disabled
@@ -49,7 +50,8 @@ from pretalx.submission.models import (
     SubmissionType,
     Tag,
     Track,
-)from pretalx.submission.models.submission import (
+)
+from pretalx.submission.models.submission import (
     SubmissionFavouriteDeprecated,
     SubmissionFavouriteDeprecatedSerializer,
 )
